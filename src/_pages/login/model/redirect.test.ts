@@ -9,6 +9,7 @@ describe("normalizeLoginRedirectPath", () => {
   it("외부 주소와 프로토콜 상대 주소는 홈으로 보정한다", () => {
     expect(normalizeLoginRedirectPath("https://evil.example/orders")).toBe("/");
     expect(normalizeLoginRedirectPath("//evil.example/orders")).toBe("/");
+    expect(normalizeLoginRedirectPath("/\\evil.example/orders")).toBe("/");
   });
 
   it("비어 있거나 슬래시로 시작하지 않는 값은 홈으로 보정한다", () => {

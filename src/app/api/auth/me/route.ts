@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  isAuthScenario,
-  readSessionToken,
-  waitForAuthApi,
-} from "@/app/api/_data/auth";
+import { isAuthScenario, readSessionToken, waitForAuthApi } from "@/app/api/_data/auth";
 import { SCENARIO_COOKIE, SESSION_COOKIE } from "@/app/api/_data/auth-cookies";
 import type { AuthErrorResponse, SessionResponse } from "@/app/api/_data/auth";
 
@@ -26,9 +22,7 @@ export async function GET(
   }
 
   const user =
-    scenario === "expired"
-      ? null
-      : readSessionToken(request.cookies.get(SESSION_COOKIE)?.value);
+    scenario === "expired" ? null : readSessionToken(request.cookies.get(SESSION_COOKIE)?.value);
 
   if (user === null) {
     return NextResponse.json({ message: "로그인이 필요합니다." }, { status: 401 });

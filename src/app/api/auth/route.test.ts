@@ -14,9 +14,7 @@ const loginRequest = (body: unknown, query = "") =>
   });
 
 const sessionCookieFrom = (response: Response) =>
-  response.headers
-    .getSetCookie()
-    .find((cookie) => cookie.startsWith(`${SESSION_COOKIE}=`)) ?? "";
+  response.headers.getSetCookie().find((cookie) => cookie.startsWith(`${SESSION_COOKIE}=`)) ?? "";
 
 const signIn = async (email = accounts[0].email) => {
   const response = await login(loginRequest({ email, password: TEST_PASSWORD }));
@@ -49,9 +47,7 @@ describe("POST /api/auth/login", () => {
   });
 
   it("rejects a wrong password and an unknown email with 401", async () => {
-    const wrongPassword = await login(
-      loginRequest({ email: accounts[0].email, password: "nope" }),
-    );
+    const wrongPassword = await login(loginRequest({ email: accounts[0].email, password: "nope" }));
     expect(wrongPassword.status).toBe(401);
     expect(await wrongPassword.json()).toEqual({
       message: "이메일 또는 비밀번호를 확인해주세요.",
@@ -71,10 +67,7 @@ describe("POST /api/auth/login", () => {
 
   it("rejects an unknown scenario before applying it", async () => {
     const response = await login(
-      loginRequest(
-        { email: accounts[0].email, password: TEST_PASSWORD },
-        "?scenario=empty",
-      ),
+      loginRequest({ email: accounts[0].email, password: TEST_PASSWORD }, "?scenario=empty"),
     );
 
     expect(response.status).toBe(400);
@@ -83,10 +76,7 @@ describe("POST /api/auth/login", () => {
 
   it("fails with 401 in the invalid scenario even with correct credentials", async () => {
     const response = await login(
-      loginRequest(
-        { email: accounts[0].email, password: TEST_PASSWORD },
-        "?scenario=invalid",
-      ),
+      loginRequest({ email: accounts[0].email, password: TEST_PASSWORD }, "?scenario=invalid"),
     );
 
     expect(response.status).toBe(401);
@@ -95,10 +85,7 @@ describe("POST /api/auth/login", () => {
 
   it("fails with 500 in the error scenario", async () => {
     const response = await login(
-      loginRequest(
-        { email: accounts[0].email, password: TEST_PASSWORD },
-        "?scenario=error",
-      ),
+      loginRequest({ email: accounts[0].email, password: TEST_PASSWORD }, "?scenario=error"),
     );
 
     expect(response.status).toBe(500);
@@ -128,9 +115,7 @@ describe("GET /api/auth/me", () => {
   it("returns 401 in the expired scenario from the query and from the cookie", async () => {
     const session = await signIn();
 
-    const fromQuery = await me(
-      meRequest({ [SESSION_COOKIE]: session }, "?scenario=expired"),
-    );
+    const fromQuery = await me(meRequest({ [SESSION_COOKIE]: session }, "?scenario=expired"));
     expect(fromQuery.status).toBe(401);
 
     const fromCookie = await me(
@@ -142,10 +127,7 @@ describe("GET /api/auth/me", () => {
   it("prefers the query scenario over the cookie scenario", async () => {
     const session = await signIn();
     const response = await me(
-      meRequest(
-        { [SESSION_COOKIE]: session, [SCENARIO_COOKIE]: "expired" },
-        "?scenario=slow",
-      ),
+      meRequest({ [SESSION_COOKIE]: session, [SCENARIO_COOKIE]: "expired" }, "?scenario=slow"),
     );
 
     expect(response.status).toBe(200);

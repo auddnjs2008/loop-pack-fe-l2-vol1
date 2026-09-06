@@ -4,32 +4,32 @@
 
 ## 필드
 
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `sessionId` | string | 세션 식별자. 같은 세션의 이벤트는 같은 값을 가집니다 |
-| `ts` | string | ISO 8601 UTC 타임스탬프 |
-| `name` | string | 이벤트 이름 |
-| `props` | object | 이벤트별 속성 |
-| `userId` | string? | 로그인한 뒤의 이벤트에만 있습니다 |
-| `device` | string \| null | `mobile` · `desktop` · `tablet`. `null`인 줄도 있습니다 |
+| 필드        | 타입           | 설명                                                    |
+| ----------- | -------------- | ------------------------------------------------------- |
+| `sessionId` | string         | 세션 식별자. 같은 세션의 이벤트는 같은 값을 가집니다    |
+| `ts`        | string         | ISO 8601 UTC 타임스탬프                                 |
+| `name`      | string         | 이벤트 이름                                             |
+| `props`     | object         | 이벤트별 속성                                           |
+| `userId`    | string?        | 로그인한 뒤의 이벤트에만 있습니다                       |
+| `device`    | string \| null | `mobile` · `desktop` · `tablet`. `null`인 줄도 있습니다 |
 
 ## 이벤트 이름
 
-| 이름 | 발생 시점 |
-| --- | --- |
-| `product_list_view` | 목록 화면 진입 |
-| `category_filter_change` | 카테고리 변경 |
-| `sort_change` | 정렬 변경 |
-| `page_change` | 페이지 이동 |
-| `product_detail_view` | 상세 화면 진입 |
-| `cart_add` | 장바구니 담기 |
-| `wishlist_add` | 위시리스트 추가 |
-| `login_start` | 로그인 화면 진입 |
-| `login_success` | 로그인 성공 |
-| `login_fail` | 로그인 실패 |
-| `order_start` | 주문서 진입 |
-| `order_complete` | 주문 완료 |
-| `client_error` | 클라이언트 오류 |
+| 이름                     | 발생 시점        |
+| ------------------------ | ---------------- |
+| `product_list_view`      | 목록 화면 진입   |
+| `category_filter_change` | 카테고리 변경    |
+| `sort_change`            | 정렬 변경        |
+| `page_change`            | 페이지 이동      |
+| `product_detail_view`    | 상세 화면 진입   |
+| `cart_add`               | 장바구니 담기    |
+| `wishlist_add`           | 위시리스트 추가  |
+| `login_start`            | 로그인 화면 진입 |
+| `login_success`          | 로그인 성공      |
+| `login_fail`             | 로그인 실패      |
+| `order_start`            | 주문서 진입      |
+| `order_complete`         | 주문 완료        |
+| `client_error`           | 클라이언트 오류  |
 
 ## 읽을 때 주의할 점
 

@@ -63,8 +63,12 @@ export const accounts: AuthUser[] = Array.from({ length: 8 }, (_, index) => ({
   email: `looper${index + 1}@loopers.dev`,
 }));
 
-const authScenarios = ["invalid", "expired", "error", "slow"] as const satisfies
-  readonly AuthScenario[];
+const authScenarios = [
+  "invalid",
+  "expired",
+  "error",
+  "slow",
+] as const satisfies readonly AuthScenario[];
 
 export const isAuthScenario = (value: string): value is AuthScenario =>
   authScenarios.some((scenario) => scenario === value);
@@ -157,8 +161,7 @@ export const resetOrders = () => {
 };
 
 // 상품 데이터를 참조하지 않고 id 형식만 확인한다. mock 상품은 p1 ~ p30이다
-export const isKnownProductId = (productId: string) =>
-  /^p(?:[1-9]|1\d|2\d|30)$/.test(productId);
+export const isKnownProductId = (productId: string) => /^p(?:[1-9]|1\d|2\d|30)$/.test(productId);
 
 // 지연은 이 파일에서 처리한다. test 환경에서는 기다리지 않는다
 export const waitForAuthApi = (requestedDelayMs = 500) =>

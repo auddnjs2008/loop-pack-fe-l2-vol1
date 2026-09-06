@@ -33,9 +33,12 @@ describe("POST /api/orders", () => {
 
   it("creates an order for the signed-in user", async () => {
     const response = await POST(
-      postRequest({ items: [{ productId: "p1", quantity: 2 }] }, {
-        [SESSION_COOKIE]: session(),
-      }),
+      postRequest(
+        { items: [{ productId: "p1", quantity: 2 }] },
+        {
+          [SESSION_COOKIE]: session(),
+        },
+      ),
     );
     const body = await response.json();
 
@@ -52,10 +55,13 @@ describe("POST /api/orders", () => {
     expect(await anonymous.json()).toEqual({ message: "로그인이 필요합니다." });
 
     const expired = await POST(
-      postRequest({ items: [{ productId: "p1", quantity: 1 }] }, {
-        [SESSION_COOKIE]: session(),
-        [SCENARIO_COOKIE]: "expired",
-      }),
+      postRequest(
+        { items: [{ productId: "p1", quantity: 1 }] },
+        {
+          [SESSION_COOKIE]: session(),
+          [SCENARIO_COOKIE]: "expired",
+        },
+      ),
     );
     expect(expired.status).toBe(401);
   });
@@ -65,16 +71,13 @@ describe("POST /api/orders", () => {
 
     expect((await POST(postRequest({ items: [] }, cookies))).status).toBe(400);
     expect(
-      (await POST(postRequest({ items: [{ productId: "p999", quantity: 1 }] }, cookies)))
-        .status,
+      (await POST(postRequest({ items: [{ productId: "p999", quantity: 1 }] }, cookies))).status,
     ).toBe(400);
     expect(
-      (await POST(postRequest({ items: [{ productId: "p1", quantity: 0 }] }, cookies)))
-        .status,
+      (await POST(postRequest({ items: [{ productId: "p1", quantity: 0 }] }, cookies))).status,
     ).toBe(400);
     expect(
-      (await POST(postRequest({ items: [{ productId: "p1", quantity: 1.5 }] }, cookies)))
-        .status,
+      (await POST(postRequest({ items: [{ productId: "p1", quantity: 1.5 }] }, cookies))).status,
     ).toBe(400);
     expect((await POST(postRequest("{not json", cookies))).status).toBe(400);
   });
@@ -87,14 +90,20 @@ describe("GET /api/orders", () => {
 
   it("returns only the signed-in user's orders", async () => {
     await POST(
-      postRequest({ items: [{ productId: "p1", quantity: 1 }] }, {
-        [SESSION_COOKIE]: session(0),
-      }),
+      postRequest(
+        { items: [{ productId: "p1", quantity: 1 }] },
+        {
+          [SESSION_COOKIE]: session(0),
+        },
+      ),
     );
     await POST(
-      postRequest({ items: [{ productId: "p2", quantity: 3 }] }, {
-        [SESSION_COOKIE]: session(1),
-      }),
+      postRequest(
+        { items: [{ productId: "p2", quantity: 3 }] },
+        {
+          [SESSION_COOKIE]: session(1),
+        },
+      ),
     );
 
     const first = await (await GET(getRequest({ [SESSION_COOKIE]: session(0) }))).json();

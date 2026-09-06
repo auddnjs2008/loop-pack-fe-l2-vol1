@@ -30,10 +30,7 @@ const resolveSession = async (request: NextRequest): Promise<Resolved> => {
   if (scenario !== null && !isAuthScenario(scenario)) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { message: "요청 조건을 확인해주세요." },
-        { status: 400 },
-      ),
+      response: NextResponse.json({ message: "요청 조건을 확인해주세요." }, { status: 400 }),
     };
   }
 
@@ -42,17 +39,12 @@ const resolveSession = async (request: NextRequest): Promise<Resolved> => {
   if (scenario === "error") {
     return {
       ok: false,
-      response: NextResponse.json(
-        { message: "주문 정보를 처리하지 못했습니다." },
-        { status: 500 },
-      ),
+      response: NextResponse.json({ message: "주문 정보를 처리하지 못했습니다." }, { status: 500 }),
     };
   }
 
   const user =
-    scenario === "expired"
-      ? null
-      : readSessionToken(request.cookies.get(SESSION_COOKIE)?.value);
+    scenario === "expired" ? null : readSessionToken(request.cookies.get(SESSION_COOKIE)?.value);
 
   if (user === null) {
     return {

@@ -6,11 +6,7 @@ import {
   isRecord,
   waitForAuthApi,
 } from "@/app/api/_data/auth";
-import {
-  SCENARIO_COOKIE,
-  SESSION_COOKIE,
-  SESSION_TTL_SECONDS,
-} from "@/app/api/_data/auth-cookies";
+import { SCENARIO_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/app/api/_data/auth-cookies";
 import type { AuthErrorResponse, SessionResponse } from "@/app/api/_data/auth";
 
 export async function POST(
@@ -49,10 +45,7 @@ export async function POST(
 
   const user = scenario === "invalid" ? null : findAccount(email, password);
   if (user === null) {
-    return NextResponse.json(
-      { message: "이메일 또는 비밀번호를 확인해주세요." },
-      { status: 401 },
-    );
+    return NextResponse.json({ message: "이메일 또는 비밀번호를 확인해주세요." }, { status: 401 });
   }
 
   const response = NextResponse.json({ user });

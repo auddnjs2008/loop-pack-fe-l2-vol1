@@ -110,6 +110,19 @@ job을 병렬화하면 각 job에서 `pnpm install --frozen-lockfile`이 반복�
 
 `concurrency`를 나중에 적용한다면 main push 실행까지 취소하지 않도록 `group: ${{ github.workflow }}-${{ github.ref }}`처럼 ref를 포함해야 한다.
 
+### 공통 보안 하드닝
+
+CI는 PR 코드를 checkout해서 실행하고, `Budget` job에서는 repository secret도 읽는다. 그래서 workflow 기본값을 넓게 두지 않고 아래 기준을 적용했다.
+
+| 항목                          | 적용 내용                                                                                                       | 판단 근거                                                                                                       |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 최소 권한                     | workflow 최상단에 `permissions: contents: read`, `pull-requests: read`를 명시했다.                              | 코드를 읽고 PR 변경 파일을 판별하면 충분하다. PR 코멘트를 쓰지 않으므로 `pull-requests: write`는 주지 않는다.   |
+| third-party action 핀         | `actions/checkout`, `actions/setup-node`, `pnpm/action-setup`, `dorny/paths-filter`를 모두 commit SHA로 핀했다. | 공식 action은 major tag도 가능하지만, 이번 과제에서는 재현성과 공급망 리스크 축소를 위해 모두 SHA로 고정했다.   |
+| checkout credential 저장 차단 | 모든 `actions/checkout` step에 `persist-credentials: false`를 둔다.                                             | 이후 step에서 git credential이 남아 push나 외부 전송에 쓰일 여지를 줄인다.                                      |
+| `pull_request_target` 미사용  | trigger는 `pull_request`, `push`, `merge_group`만 사용한다.                                                     | fork PR 코드가 secrets 접근 권한으로 실행되는 위험을 피한다.                                                    |
+| secrets 노출 방지             | `AUTH_SESSION_SECRET`은 `Budget` job의 env로만 주입하고, 로그에는 값이 아니라 검증 성공/실패 메시지만 남긴다.   | secret 자체를 echo하지 않는다. fork PR처럼 secret이 비어 있으면 `validate:env`에서 실패해 닫힌 쪽으로 동작한다. |
+| AI 리뷰 CI 미연동             | AI 리뷰는 문서화된 수동 리뷰 보조로만 둔다.                                                                     | AI API key를 CI secret으로 추가하지 않아도 되고, PR 코드 실행과 외부 API 호출을 섞지 않아도 된다.               |
+
 ### 캐시 hit 자가 검증
 
 캐시가 실제로 hit 되는지 확인하려고 정상 lockfile 상태와 lockfile hash를 일부러 바꾼 상태를 각각 실행했다.
@@ -236,12 +249,12 @@ E2E는 브라우저를 설치하고 production build까지 수행하므로 현�
 
 E2E는 앱 런타임, 브라우저 노출 자산, E2E 테스트/설정, 의존성, Node 버전, CI 실행 방식이 바뀐 경우에만 실행한다.
 
-| 분류      | 경로                                                                                         | 이유                           |
-| --------- | -------------------------------------------------------------------------------------------- | ------------------------------ |
-| 앱 코드   | `src/**`                                                                                     | UI, API route, 상태, 공통 계층 |
-| E2E 코드  | `e2e/**`, `playwright.config.*`                                                              | E2E 시나리오와 실행 설정       |
-| 정적 자산 | `public/**`                                                                                  | 브라우저에서 직접 노출         |
-| 환경/설정 | `package.json`, `pnpm-lock.yaml`, `next.config.*`, `.nvmrc`, `.github/workflows/quality.yml` | 빌드, 런타임, CI 동작 영향     |
+| 분류      | 경로                                                                                                                                                                                   | 이유                               |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 앱 코드   | `src/**`                                                                                                                                                                               | UI, API route, 상태, 공통 계층     |
+| E2E 코드  | `e2e/**`, `playwright.config.*`                                                                                                                                                        | E2E 시나리오와 실행 설정           |
+| 정적 자산 | `public/**`                                                                                                                                                                            | 브라우저에서 직접 노출             |
+| 환경/설정 | `package.json`, `pnpm-lock.yaml`, `.size-limit.json`, `scripts/**`, `next.config.*`, `postcss.config.*`, `tsconfig.json`, `vitest.config.*`, `.nvmrc`, `.github/workflows/quality.yml` | 빌드, 런타임, 테스트, CI 동작 영향 |
 
 `docs/**`, `README.md`처럼 문서만 변경한 PR은 앱 런타임이나 브라우저 사용자 흐름을 바꾸지 않으므로 E2E를 스킵한다.
 

@@ -40,6 +40,9 @@ jobs:
               - "scripts/**"
               - "playwright.config.*"
               - "next.config.*"
+              - "postcss.config.*"
+              - "tsconfig.json"
+              - "vitest.config.*"
               - ".nvmrc"
               - ".github/workflows/quality.yml"
 

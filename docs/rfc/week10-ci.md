@@ -232,9 +232,46 @@ Before에서는 하나의 `quality` job 안에서 `pnpm test`, `pnpm lint`, `pnp
 
 ### 대상 변경 범위
 
+E2E는 브라우저를 설치하고 production build까지 수행하므로 현재 workflow에서 가장 비싼 검증이다. 반면 `unit`, `lint`, `typecheck`는 결정적이고 상대적으로 저비용이므로 모든 PR에서 계속 실행한다.
+
+E2E는 앱 런타임, 브라우저 노출 자산, E2E 테스트/설정, 의존성, Node 버전, CI 실행 방식이 바뀐 경우에만 실행한다.
+
+| 분류      | 경로                                                                                         | 이유                           |
+| --------- | -------------------------------------------------------------------------------------------- | ------------------------------ |
+| 앱 코드   | `src/**`                                                                                     | UI, API route, 상태, 공통 계층 |
+| E2E 코드  | `e2e/**`, `playwright.config.*`                                                              | E2E 시나리오와 실행 설정       |
+| 정적 자산 | `public/**`                                                                                  | 브라우저에서 직접 노출         |
+| 환경/설정 | `package.json`, `pnpm-lock.yaml`, `next.config.*`, `.nvmrc`, `.github/workflows/quality.yml` | 빌드, 런타임, CI 동작 영향     |
+
+`docs/**`, `README.md`처럼 문서만 변경한 PR은 앱 런타임이나 브라우저 사용자 흐름을 바꾸지 않으므로 E2E를 스킵한다.
+
 ### 실행 조건
 
+`dorny/paths-filter`로 PR의 변경 경로를 판정하고, workflow 자체는 항상 실행한다. `on.pull_request.paths`는 workflow 전체를 스킵해 `unit`, `lint`, `typecheck`, `Quality`까지 실행되지 않을 수 있으므로 사용하지 않았다.
+
+| 이벤트         | E2E 실행 조건                              |
+| -------------- | ------------------------------------------ |
+| `pull_request` | draft가 아니고 E2E 관련 경로가 변경된 경우 |
+| `push` to main | 항상 실행                                  |
+| `merge_group`  | 항상 실행                                  |
+
+Draft PR은 아직 merge 대상이 아니므로 E2E를 스킵한다. Ready for review로 전환되면 PR 이벤트가 다시 발생하고 변경 경로 기준으로 E2E 실행 여부를 다시 판정한다.
+
+Branch protection의 required check와 충돌하지 않도록 `E2E` 자체가 아니라 항상 실행되는 `Quality` job을 최종 판정으로 둔다. `Quality`는 `unit`, `lint`, `typecheck`가 모두 성공해야 통과하고, E2E는 실행 대상이면 `success`, 의도적으로 스킵된 경우면 `skipped`를 정상으로 인정한다.
+
+main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경이나 draft 상태로 E2E가 스킵되더라도, merge queue에서는 경로와 무관하게 E2E를 항상 실행해 main 병합 직전 최종 방어선을 둔다. merge queue를 쓰지 않는 main push에서도 E2E를 항상 실행한다.
+
 ### 검증 결과
+
+검증은 조건에 걸리는 PR과 걸리지 않는 PR을 각각 만들어 확인한다.
+
+| 케이스             | 기대 결과                                                  |
+| ------------------ | ---------------------------------------------------------- |
+| 문서만 변경한 PR   | `unit`, `lint`, `typecheck`, `Quality` 실행, `E2E` skipped |
+| `src/**` 변경 PR   | `unit`, `lint`, `typecheck`, `E2E`, `Quality` 모두 실행    |
+| Draft PR           | E2E 관련 경로가 바뀌어도 `E2E` skipped, `Quality` success  |
+| Ready 전환 후 PR   | E2E 관련 경로 변경이 있으면 `E2E` 실행                     |
+| `merge_group` 실행 | 경로와 무관하게 `E2E` 실행                                 |
 
 ## 3단계 - 예산 게이트와 결과 표시
 

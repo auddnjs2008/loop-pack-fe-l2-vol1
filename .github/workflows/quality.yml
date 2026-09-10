@@ -5,11 +5,42 @@ name: Quality
     branches:
       - main
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      e2e: ${{ github.event_name != 'pull_request' && 'true' || steps.filter.outputs.e2e }}
+    steps:
+      - name: Checkout
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Filter changed paths
+        id: filter
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        with:
+          filters: |
+            e2e:
+              - "src/**"
+              - "e2e/**"
+              - "public/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "playwright.config.*"
+              - "next.config.*"
+              - ".nvmrc"
+              - ".github/workflows/quality.yml"
+
   unit:
     name: Unit test
     runs-on: ubuntu-latest
@@ -83,6 +114,9 @@ jobs:
     name: E2E
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs:
+      - changes
+    if: ${{ needs.changes.outputs.e2e == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -110,6 +144,7 @@ jobs:
     timeout-minutes: 5
     if: ${{ always() }}
     needs:
+      - changes
       - unit
       - lint
       - typecheck
@@ -120,9 +155,16 @@ jobs:
           UNIT_RESULT: ${{ needs.unit.result }}
           LINT_RESULT: ${{ needs.lint.result }}
           TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          E2E_SHOULD_RUN: ${{ needs.changes.outputs.e2e == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
           E2E_RESULT: ${{ needs.e2e.result }}
         run: |
+          test "$CHANGES_RESULT" = "success"
           test "$UNIT_RESULT" = "success"
           test "$LINT_RESULT" = "success"
           test "$TYPECHECK_RESULT" = "success"
-          test "$E2E_RESULT" = "success"
+          if [ "$E2E_SHOULD_RUN" = "true" ]; then
+            test "$E2E_RESULT" = "success"
+          else
+            test "$E2E_RESULT" = "skipped"
+          fi

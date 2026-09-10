@@ -273,7 +273,16 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 | Ready 전환 후 PR   | E2E 관련 경로 변경이 있으면 `E2E` 실행                     |
 | `merge_group` 실행 | 경로와 무관하게 `E2E` 실행                                 |
 
-문서만 변경한 PR의 E2E skip 여부는 이 RFC만 수정한 커밋으로 확인한다.
+실제 PR에서도 조건부 실행을 확인했다.
+
+| PR / 변경 범위                   | 결과                                                                            | 판단 |
+| -------------------------------- | ------------------------------------------------------------------------------- | ---- |
+| `feat/week-10` / workflow 변경   | `Detect changes`, `E2E`, `Quality` success                                      | 통과 |
+| `test/e2e-skip-docs` / 문서 변경 | `Detect changes`, `unit`, `lint`, `typecheck`, `Quality` success, `E2E` skipped | 통과 |
+
+문서만 변경한 PR은 전체 52초에 끝났고, E2E가 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다.
+
+E2E flaky 대응은 기존 Playwright 설정을 따른다. CI에서는 `retries: 2`와 `trace: "on-first-retry"`로 일시적인 runner 지연을 구분하고, 로컬에서는 `retries: 0`으로 실패를 바로 드러낸다. 같은 스펙이 반복 실패하면 retry로 숨기지 않고 별도 이슈로 분리해 원인을 추적한다.
 
 ## 3단계 - 예산 게이트와 결과 표시
 

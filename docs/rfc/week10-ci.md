@@ -450,6 +450,64 @@ AI는 `src/entities/product/ui/ProductCard.tsx`가 `@/features/add-to-cart`를 i
 
 #### 5단계 승격 후보
 
-잘 잡은 FSD import 경계 위반은 결정적으로 판별 가능하다. 5단계에서는 `entities/*`가 `features/*`, `widgets/*`, `_pages/*`를 import하지 못하게 하는 정적 하네스를 승격 후보로 둔다.
+잘 잡은 FSD import 경계 위반은 결정적으로 판별 가능하다. 5단계에서는 `entities/*`가 `features/*`, `widgets/*`, `_pages/*`를 import하지 못하게 하는 정적 하네스로 내려 실제 gate에서 막는다.
+
+## 5단계 - AI 지적을 결정적 룰로 승격
+
+### 승격 대상
+
+4단계 AI 리뷰에서 잘 잡은 지적은 `entities/product`가 `features/add-to-cart`를 import한 FSD 경계 위반이었다. 이 규칙은 import 경로만 보면 참/거짓을 판별할 수 있다. 그래서 AI나 사람이 매번 리뷰로 확인하는 대신, 결정적 하네스로 내려 PR gate에서 막는 편이 맞다고 판단했다.
+
+승격한 규칙:
+
+- 하위 레이어가 상위 레이어를 import하지 않는다.
+- 같은 레이어의 다른 slice를 직접 import하지 않는다.
+
+AI/사람 리뷰에 남길 것과 기계로 내릴 것은 아래처럼 나눴다.
+
+| 구분                   | 담당                 | 판단 근거                                           |
+| ---------------------- | -------------------- | --------------------------------------------------- |
+| import 방향            | `architecture:check` | 경로만으로 참/거짓을 판별할 수 있다.                |
+| 다른 slice 직접 import | `architecture:check` | source/target layer와 slice가 결정적이다.           |
+| slice 배치             | AI/사람 리뷰         | 이 로직이 어느 slice 책임인지 맥락 판단이 필요하다. |
+| Public API 의도        | AI/사람 리뷰         | 무엇을 외부 계약으로 공개할지는 설계 판단이다.      |
+| `shared` 오염          | AI/사람 리뷰         | 도메인 정책인지 공용 유틸인지 맥락 확인이 필요하다. |
+
+이 규칙은 `src/shared/config/architecture/fsdImportBoundaries.test.ts`에서 Vitest 기반 아키텍처 테스트로 검증한다. 별도 ESLint rule을 새로 만들지 않은 이유는 이미 같은 목적의 하네스가 있고, `package.json`의 `architecture:check`로 단독 실행할 수 있기 때문이다.
+
+### CI 배치
+
+`quality.yml`의 `Unit test` job은 `pnpm test`를 실행한다. `fsdImportBoundaries.test.ts`는 일반 Vitest suite에 포함되므로 PR마다 `Unit test`와 최종 `Quality` gate를 통해 실행된다.
+
+빠르게 이 규칙만 확인할 때는 아래 명령을 사용한다.
+
+```bash
+pnpm architecture:check
+```
+
+### 자가 검증
+
+정상 코드에서는 아키텍처 하네스가 통과했다.
+
+```txt
+> commerce@0.1.0 architecture:check
+> vitest run fsdImportBoundaries
+
+Test Files  1 passed (1)
+Tests       2 passed (2)
+```
+
+4단계 실험 브랜치 `test/ai-review-sample`에서는 같은 명령이 실패했다. 샘플 위반은 `src/entities/product/ui/ProductCard.tsx`에서 `@/features/add-to-cart`를 import한 변경이다.
+
+```txt
+FAIL src/shared/config/architecture/fsdImportBoundaries.test.ts > FSD import boundary > 하위 레이어가 상위 레이어를 import하지 않는다
+
+Expected []
+Received [
+  "src/entities/product/ui/ProductCard.tsx -> src/features/add-to-cart/index.ts",
+]
+```
+
+이 결과로 AI가 잡은 FSD 경계 위반이 결정적 하네스로도 막히는 것을 확인했다. 반대로 정상 브랜치에서는 같은 하네스가 통과하므로, 현재 구조에 대한 오탐은 확인되지 않았다.
 
 ## 회고

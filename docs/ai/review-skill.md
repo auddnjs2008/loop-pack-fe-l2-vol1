@@ -1,6 +1,6 @@
 ---
 name: project-ai-review
-description: PR diff를 이 프로젝트의 10주차 누적 규칙으로 리뷰할 때 사용한다. 타입/린트 우회, React 경계, 상태 원본, FSD import/Public API, 테스트/모킹 경계를 점검한다.
+description: PR diff를 이 프로젝트의 10주차 누적 규칙으로 리뷰할 때 사용한다. 타입/린트 우회, React 경계, 상태 원본, FSD 구조/Public API, 테스트/모킹 경계를 점검한다.
 ---
 
 # Project AI Review Skill
@@ -31,7 +31,7 @@ PR diff를 이 프로젝트의 규칙으로 리뷰한다. 일반적인 코드 �
 1. 타입/린트 우회와 검증 우회가 있는지 확인한다.
 2. React 컴포넌트, Hook, API, 유틸의 책임 경계를 본다.
 3. 서버 상태, URL 상태, 클라이언트 상태, 파생값의 원본이 유지되는지 확인한다.
-4. FSD import 방향과 slice Public API 우회가 있는지 확인한다.
+4. FSD 구조 배치와 slice Public API 의도가 변경에 맞는지 확인한다.
 5. 테스트 레벨과 모킹 경계가 변경 의도에 맞는지 확인한다.
 
 ## Output Format

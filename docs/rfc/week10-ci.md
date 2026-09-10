@@ -345,7 +345,19 @@ CI=true APP_ORIGIN=http://127.0.0.1:3000 AUTH_SESSION_SECRET=ci-week10-budget-se
 - `pnpm build` 통과
 - `size-limit` 결과: 예산 `348.16 kB`, 현재 `238.04 kB brotlied`
 
-빨간불 자가 검증은 별도 PR에서 예산을 일부러 낮추거나 잘못된 public secret 환경 변수를 넣어 확인한다. 실패 리포트는 `Budget` job의 `$GITHUB_STEP_SUMMARY`에서 확인한다.
+#### 빨간불 자가 검증
+
+`AUTH_SESSION_SECRET` repository secret을 등록하지 않은 상태에서 PR을 실행했다. `Budget` job의 `Validate environment` 단계에서 `AUTH_SESSION_SECRET is required.` 메시지로 실패했고, 최종 `Quality` job도 실패했다.
+
+![AUTH_SESSION_SECRET 누락으로 Budget과 Quality가 실패한 실행 요약](../images/week10/budget-missing-secret-summary-failed.png)
+
+![AUTH_SESSION_SECRET 누락 실패 로그](../images/week10/budget-missing-secret-log-failed.png)
+
+이후 GitHub repository secret에 `AUTH_SESSION_SECRET`을 추가하고 failed jobs를 rerun했다. `Validate environment` 단계가 `Environment validation passed`로 통과했고, `Budget`과 `Quality`가 모두 성공했다.
+
+![AUTH_SESSION_SECRET 추가 후 rerun 성공 요약](../images/week10/budget-secret-rerun-summary-passed.png)
+
+![AUTH_SESSION_SECRET 추가 후 Budget 검증 로그](../images/week10/budget-secret-rerun-log-passed.png)
 
 ## 4단계 - AI 코드리뷰 활용
 

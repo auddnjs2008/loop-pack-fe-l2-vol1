@@ -282,6 +282,10 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 
 문서만 변경한 PR은 전체 52초에 끝났고, E2E가 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다.
 
+![E2E 관련 workflow 변경 PR에서는 E2E가 실행된다.](../images/week10/e2e-runs-for-workflow-change.png)
+
+![문서만 변경한 PR에서는 E2E가 skipped 처리된다.](../images/week10/e2e-skipped-for-docs-only.png)
+
 E2E flaky 대응은 기존 Playwright 설정을 따른다. CI에서는 `retries: 2`와 `trace: "on-first-retry"`로 일시적인 runner 지연을 구분하고, 로컬에서는 `retries: 0`으로 실패를 바로 드러낸다. 같은 스펙이 반복 실패하면 retry로 숨기지 않고 별도 이슈로 분리해 원인을 추적한다.
 
 ## 3단계 - 예산 게이트와 결과 표시

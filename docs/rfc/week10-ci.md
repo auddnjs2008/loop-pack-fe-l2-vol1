@@ -367,10 +367,39 @@ CI=true APP_ORIGIN=http://127.0.0.1:3000 AUTH_SESSION_SECRET=ci-week10-budget-se
 
 ## 4단계 - AI 코드리뷰 활용
 
+### 리뷰 기준 출처
+
+AI 코드리뷰 프롬프트는 일반적인 가독성 조언이 아니라, 10주간 이 프로젝트에서 합의한 규칙을 기준으로 작성한다. 리뷰 진입점은 `docs/ai/review-skill.md`로 두고, 세부 기준은 주제별 rule 파일로 나눴다.
+
+| 파일                                      | 역할                                                            |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| `docs/ai/review-skill.md`                 | PR diff 리뷰 순서, 출력 형식, advisory 운영 원칙                |
+| `docs/ai/review-rules/type-lint.md`       | pnpm 사용, 타입/린트 우회 금지, 검증 우회 금지                  |
+| `docs/ai/review-rules/react-component.md` | 컴포넌트, Hook, API, 유틸 책임 경계와 `useEffect` 정당성        |
+| `docs/ai/review-rules/state-url.md`       | 서버·URL·클라이언트 상태의 Source of Truth, 서버 응답 복사 금지 |
+| `docs/ai/review-rules/fsd-boundary.md`    | FSD import 방향, slice Public API 우회 금지                     |
+| `docs/ai/review-rules/test-boundary.md`   | 단위/통합/E2E 경계, MSW 모킹 경계, E2E production build 기준    |
+
+AI 리뷰는 비결정적이므로 required gate로 두지 않는다. 이번 과제에서는 로컬/수동 PR 리뷰 보조 도구로만 사용하고, 반복적으로 유효한 지적이 나오면 5단계에서 결정적 하네스로 승격할 후보로 기록한다.
+
 ### 리뷰 대상
+
+아직 실제 PR diff 리뷰를 실행하기 전이다. 다음 단계에서 이 브랜치의 PR diff를 `docs/ai/review-skill.md` 기준으로 리뷰하고, 잘 잡은 리뷰와 헛소리한 리뷰를 각각 기록한다.
 
 ### AI 피드백
 
+작성 예정:
+
+- 잘 잡은 리뷰 1개
+- 헛소리한 리뷰 1개
+- 헛소리를 줄이기 위해 프롬프트나 rule 파일을 수정한 내용
+
 ### 반영 결과
+
+작성 예정:
+
+- 수용한 지적과 코드/문서 반영 결과
+- 반려한 지적과 반려 이유
+- 5단계에서 결정적 룰로 승격할 후보
 
 ## 회고

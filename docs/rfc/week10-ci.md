@@ -384,22 +384,72 @@ AI 리뷰는 비결정적이므로 required gate로 두지 않는다. 이번 과
 
 ### 리뷰 대상
 
-아직 실제 PR diff 리뷰를 실행하기 전이다. 다음 단계에서 이 브랜치의 PR diff를 `docs/ai/review-skill.md` 기준으로 리뷰하고, 잘 잡은 리뷰와 헛소리한 리뷰를 각각 기록한다.
+실제 과제 브랜치 diff는 CI, 문서, workflow 변경이 대부분이라 React/FSD/상태 경계 규칙을 검증하기 어렵다. 그래서 `test/ai-review-sample` 브랜치에서 의도적인 작은 위반 diff를 만들고, 이 diff를 AI 리뷰 대상으로 삼았다. 이 브랜치는 리뷰 기준 검증용이며 머지하지 않는다.
+
+- 대상 브랜치: `test/ai-review-sample`
+- 대상 커밋: `0a40349f test: add AI review sample violation`
+- 대상 diff: `src/entities/product/ui/ProductCard.tsx`에서 `@/features/add-to-cart`를 import하고, entity 컴포넌트 안에서 `useAddToCart(product.id)`와 `담기` 버튼 fallback을 직접 조합함
+
+실험 브랜치에는 아래처럼 의도적인 FSD 위반을 넣었다.
+
+```diff
+ import Image from "next/image";
+ import type { ReactNode } from "react";
++import { useAddToCart } from "@/features/add-to-cart";
+
+ export function ProductCard({
+   product,
+   titleLevel = 2,
+   floatingAction,
+   bottomAction,
+ }: ProductCardProps) {
+   const Title = titleLevel === 2 ? "h2" : "h3";
++  const fallbackAddToCart = useAddToCart(product.id);
+
+   return (
+     <article className="group grid gap-2.5">
+       ...
+-      {bottomAction !== undefined ? <div data-slot="bottom-action">{bottomAction}</div> : null}
++      {bottomAction !== undefined ? (
++        <div data-slot="bottom-action">{bottomAction}</div>
++      ) : (
++        <button type="button" disabled={fallbackAddToCart.disabled} onClick={fallbackAddToCart.onClick}>
++          담기
++        </button>
++      )}
+     </article>
+   );
+ }
+```
 
 ### AI 피드백
 
-작성 예정:
+#### 잘 잡은 리뷰
 
-- 잘 잡은 리뷰 1개
-- 헛소리한 리뷰 1개
-- 헛소리를 줄이기 위해 프롬프트나 rule 파일을 수정한 내용
+AI는 `src/entities/product/ui/ProductCard.tsx`가 `@/features/add-to-cart`를 import한 점을 FSD 의존 방향 위반으로 지적했다. `entities`는 `features`나 `widgets`를 알면 안 되고, 상품 표현과 장바구니 행위의 조합은 `widgets`나 `_pages`에서 해야 한다는 `docs/ai/review-rules/fsd-boundary.md` 기준과 일치한다.
+
+가장 작은 수정안도 타당했다. `ProductCard`는 기존처럼 `bottomAction` slot만 유지하고, `useAddToCart(product.id)`와 버튼 조합은 상위 `widgets/product-card` 또는 `_pages`에서 처리해야 한다.
+
+#### 헛소리한 리뷰
+
+약한 프롬프트로 "이 diff 코드리뷰해줘"라고 요청했을 때, AI는 새 `<button>`에 `aria-label`이 없어 접근성 문제가 있다고 지적했다. 하지만 해당 버튼에는 visible text인 `담기`가 있어 접근성 이름이 이미 제공된다. 이 프로젝트의 테스트/리뷰 기준은 role과 name처럼 사용자가 인식하는 방식으로 요소를 찾는 것이며, 모든 버튼에 별도 `aria-label`을 요구하지 않는다.
+
+이 지적은 파일/라인과 실제 접근성 결함이 연결되지 않은 일반론이므로 반려했다.
 
 ### 반영 결과
 
-작성 예정:
+#### 프롬프트 개선
 
-- 수용한 지적과 코드/문서 반영 결과
-- 반려한 지적과 반려 이유
-- 5단계에서 결정적 룰로 승격할 후보
+오탐을 줄이기 위해 `docs/ai/review-skill.md`에 아래 제한을 명시했다.
+
+- PR diff에 포함된 변경을 먼저 본다.
+- 이번 PR과 무관한 오래된 문제는 finding으로 쓰지 않는다.
+- 추측으로 지적하지 않는다.
+- 파일/라인, 변경 내용, 어긴 규칙이 이어질 때만 finding으로 쓴다.
+- "가독성", "유지보수성"처럼 근거 없는 일반론으로 지적하지 않는다.
+
+#### 5단계 승격 후보
+
+잘 잡은 FSD import 경계 위반은 결정적으로 판별 가능하다. 5단계에서는 `entities/*`가 `features/*`, `widgets/*`, `_pages/*`를 import하지 못하게 하는 정적 하네스를 승격 후보로 둔다.
 
 ## 회고

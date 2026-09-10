@@ -359,6 +359,12 @@ CI=true APP_ORIGIN=http://127.0.0.1:3000 AUTH_SESSION_SECRET=ci-week10-budget-se
 
 ![AUTH_SESSION_SECRET 추가 후 Budget 검증 로그](../images/week10/budget-secret-rerun-log-passed.png)
 
+번들 예산 빨간불은 별도 `test/budget-over-limit` PR에서 확인했다. 실제 구현의 예산은 유지하고, 테스트 브랜치에서만 `.size-limit.json`의 limit을 `200 KiB`로 낮췄다. `Budget` job의 `Check bundle budget` 단계에서 현재 번들 `238.04 kB brotlied`가 제한 `204.8 kB`를 `33.24 kB` 초과해 실패했고, 최종 `Quality` job도 실패했다. 이 테스트 PR은 캡처용이며 과제 브랜치에 머지하지 않는다.
+
+![번들 예산 초과로 Budget과 Quality가 실패한 실행 요약](../images/week10/budget-over-limit-summary-failed.png)
+
+![번들 예산 초과 실패 로그](../images/week10/budget-over-limit-log-failed.png)
+
 ## 4단계 - AI 코드리뷰 활용
 
 ### 리뷰 대상

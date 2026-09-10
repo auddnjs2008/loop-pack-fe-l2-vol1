@@ -160,6 +160,17 @@ cache hit에서는 pnpm store가 복원되어 `Install dependencies`가 2초로 
 
 ### 적용 내용
 
+`.github/workflows/quality.yml`의 단일 `quality` job을 `unit`, `lint`, `typecheck`, `e2e` job으로 나눴다.
+
+- `unit`: `pnpm test`
+- `lint`: `pnpm lint`
+- `typecheck`: `pnpm typecheck`
+- `e2e`: `pnpm exec playwright install --with-deps chromium` 후 `pnpm test:e2e`
+
+모든 job은 `pnpm install --frozen-lockfile`과 `actions/setup-node`의 pnpm cache 설정을 유지한다. Playwright Chromium 설치는 E2E에만 필요하므로 `e2e` job에만 남겼다.
+
+기존 PR check 이름을 유지하기 위해 마지막에 `Quality` 집계 job을 뒀다. 이 job은 `unit`, `lint`, `typecheck`, `e2e` 결과가 모두 `success`일 때만 통과한다.
+
 ### After 측정
 
 ### Before/After 비교

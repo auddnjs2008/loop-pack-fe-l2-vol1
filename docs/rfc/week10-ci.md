@@ -275,6 +275,8 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 
 문서만 변경한 PR의 E2E skip 여부는 이 RFC만 수정한 커밋으로 확인한다.
 
+문서 전용 PR에서는 `E2E`가 skipped로 표시되고 `Quality`가 success로 끝나야 한다.
+
 ## 3단계 - 예산 게이트와 결과 표시
 
 ### 예산 기준

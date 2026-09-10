@@ -273,15 +273,91 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 | Ready 전환 후 PR   | E2E 관련 경로 변경이 있으면 `E2E` 실행                     |
 | `merge_group` 실행 | 경로와 무관하게 `E2E` 실행                                 |
 
-문서만 변경한 PR의 E2E skip 여부는 이 RFC만 수정한 커밋으로 확인한다.
+실제 PR에서도 조건부 실행을 확인했다.
+
+| PR / 변경 범위                   | 결과                                                                            | 판단 |
+| -------------------------------- | ------------------------------------------------------------------------------- | ---- |
+| `feat/week-10` / workflow 변경   | `Detect changes`, `E2E`, `Quality` success                                      | 통과 |
+| `test/e2e-skip-docs` / 문서 변경 | `Detect changes`, `unit`, `lint`, `typecheck`, `Quality` success, `E2E` skipped | 통과 |
+
+문서만 변경한 PR은 전체 52초에 끝났고, E2E가 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다.
+
+![E2E 관련 workflow 변경 PR에서는 E2E가 실행된다.](../images/week10/e2e-runs-for-workflow-change.png)
+
+![문서만 변경한 PR에서는 E2E가 skipped 처리된다.](../images/week10/e2e-skipped-for-docs-only.png)
+
+E2E flaky 대응은 기존 Playwright 설정을 따른다. CI에서는 `retries: 2`와 `trace: "on-first-retry"`로 일시적인 runner 지연을 구분하고, 로컬에서는 `retries: 0`으로 실패를 바로 드러낸다. 같은 스펙이 반복 실패하면 retry로 숨기지 않고 별도 이슈로 분리해 원인을 추적한다.
 
 ## 3단계 - 예산 게이트와 결과 표시
 
 ### 예산 기준
 
+번들 예산은 `size-limit`와 `@size-limit/file`로 검사한다. Next 16 Turbopack의 `next build` 출력은 route별 `First Load JS` 표를 제공하지 않으므로, CI에서는 빌드 산출물인 `.next/static/chunks/*.{js,css}`의 brotli 크기를 예산 대상으로 둔다.
+
+임계값은 7주차 Home real-final 측정값과 현재 빌드 값을 함께 기준으로 잡았다.
+
+| 기준                      | 값          | 근거                                                               |
+| ------------------------- | ----------- | ------------------------------------------------------------------ |
+| 7주차 Home 전체 전송량    | `459.5KiB`  | `docs/performance/week-07/step-4-regression/after/summary.md`      |
+| 7주차 Home Hero 전송량    | `46.0KiB`   | 같은 문서의 Network 관찰                                           |
+| 현재 client JS/CSS brotli | `238.04 kB` | `pnpm build` 후 `pnpm budget:bundle` 측정                          |
+| 예산                      | `340KiB`    | 현재값에서 약 43% 여유, 7주차 전체 전송량보다는 낮은 상한으로 설정 |
+
+예산은 현재값과 너무 붙이지 않았다. 작은 Next/Turbopack chunk 변동이나 CSS 생성 순서 차이로 불필요한 빨간불이 나지 않도록 여유를 두되, 7주차 Home 전체 전송량보다 낮게 잡아 클라이언트 JS/CSS가 한 번에 크게 늘어나는 회귀는 막는다.
+
+환경 변수 검증은 build 전에 `scripts/validate-env.mjs`로 수행한다. 로컬에서는 `.env.local`이 있으면 먼저 읽고, CI/production에서는 `APP_ORIGIN`과 `AUTH_SESSION_SECRET`을 필수로 요구한다. `APP_ORIGIN`, `INTERNAL_API_BASE_URL`, `NEXT_PUBLIC_API_BASE_URL`은 설정된 경우 절대 `http(s)` URL이어야 한다. `NEXT_PUBLIC_*` 이름에 `SECRET`, `TOKEN`, `PASSWORD`, `DATABASE`, `PRIVATE`, `KEY`가 포함되면 브라우저 노출 위험으로 실패시킨다.
+
+실제 env 값은 Git에 커밋하지 않는다. 저장소에는 `.env.example`만 커밋하고, 로컬 값은 `.env.local`, CI secret은 GitHub Actions Secret, 운영 값은 배포 플랫폼의 secret manager에서 관리한다.
+
+Lighthouse CI는 이번 단계의 required gate로 넣지 않는다. 7주차 LCP/CLS 기준은 이미 남아 있지만 Lighthouse는 CI runner 상태에 따른 변동성이 크고, 이번 단계의 필수 사고 방지 범위는 번들 크기와 환경 변수 검증으로 좁힌다.
+
 ### 적용 내용
 
+- `pnpm validate:env`: 환경 변수 게이트
+- `pnpm budget:bundle`: `size-limit` 번들 예산 게이트
+- `pnpm budget`: 환경 변수 검증, production build, 번들 예산 검사를 한 번에 수행
+- `Budget` CI job: 앱 관련 변경 PR, main push, `merge_group`에서 실행
+- `Quality` CI job: `Budget`이 실행 대상이면 success를 요구하고, 문서-only 또는 draft PR에서 skipped면 정상으로 인정
+- `.env.example`: 필요한 환경 변수 목록과 형식 문서화
+
+GitHub Actions에서 `AUTH_SESSION_SECRET`은 `${{ secrets.AUTH_SESSION_SECRET }}`로 주입한다. 이 값은 repository secret으로 직접 추가해야 한다.
+
+설정 절차:
+
+1. GitHub repository `Settings`로 이동한다.
+2. `Secrets and variables` > `Actions`를 연다.
+3. `New repository secret`을 누른다.
+4. Name은 `AUTH_SESSION_SECRET`, 값은 16자 이상의 CI용 secret으로 저장한다.
+
+Branch protection의 required check는 `Quality`를 기준으로 둔다. `unit`, `lint`, `typecheck`, 조건부 `E2E`, 조건부 `Budget` 결과를 `Quality`가 집계하므로 required check가 조건부 job의 skipped 상태 때문에 대기 상태에 빠지지 않는다.
+
 ### 검증 결과
+
+로컬 검증:
+
+```txt
+CI=true APP_ORIGIN=http://127.0.0.1:3000 AUTH_SESSION_SECRET=ci-week10-budget-secret pnpm budget
+```
+
+결과:
+
+- 환경 변수 검증 통과
+- `pnpm build` 통과
+- `size-limit` 결과: 예산 `348.16 kB`, 현재 `238.04 kB brotlied`
+
+#### 빨간불 자가 검증
+
+`AUTH_SESSION_SECRET` repository secret을 등록하지 않은 상태에서 PR을 실행했다. `Budget` job의 `Validate environment` 단계에서 `AUTH_SESSION_SECRET is required.` 메시지로 실패했고, 최종 `Quality` job도 실패했다.
+
+![AUTH_SESSION_SECRET 누락으로 Budget과 Quality가 실패한 실행 요약](../images/week10/budget-missing-secret-summary-failed.png)
+
+![AUTH_SESSION_SECRET 누락 실패 로그](../images/week10/budget-missing-secret-log-failed.png)
+
+이후 GitHub repository secret에 `AUTH_SESSION_SECRET`을 추가하고 failed jobs를 rerun했다. `Validate environment` 단계가 `Environment validation passed`로 통과했고, `Budget`과 `Quality`가 모두 성공했다.
+
+![AUTH_SESSION_SECRET 추가 후 rerun 성공 요약](../images/week10/budget-secret-rerun-summary-passed.png)
+
+![AUTH_SESSION_SECRET 추가 후 Budget 검증 로그](../images/week10/budget-secret-rerun-log-passed.png)
 
 ## 4단계 - AI 코드리뷰 활용
 

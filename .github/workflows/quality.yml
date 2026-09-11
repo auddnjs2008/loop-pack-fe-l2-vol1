@@ -31,6 +31,7 @@ jobs:
         with:
           filters: |
             e2e:
+              # Workflow changes must exercise the full quality path.
               - "src/**"
               - "e2e/**"
               - "public/**"
@@ -110,7 +111,7 @@ jobs:
     if: ${{ needs.changes.outputs.e2e == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     env:
       APP_ORIGIN: http://127.0.0.1:3000
-      AUTH_SESSION_SECRET: ${{ secrets.AUTH_SESSION_SECRET }}
+      AUTH_SESSION_SECRET: ${{ github.event_name == 'pull_request' && 'ci-week10-budget-secret' || secrets.AUTH_SESSION_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

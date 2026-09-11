@@ -186,58 +186,58 @@ cache hit에서는 pnpm store가 복원되어 `Install dependencies`가 2초로 
 
 ### After 측정
 
-After는 `quality` job을 `unit`, `lint`, `typecheck`, `e2e`로 병렬화한 뒤 측정했다. cold는 cache를 지운 뒤 `pnpm cache is not found` 로그가 나온 실행으로 잡았고, warm은 `Cache restored from key:` 로그가 나온 실행으로 잡았다. 이후 최종 workflow에서는 측정 결과를 바탕으로 `unit`, `lint`, `typecheck`를 `Checks` job 하나로 합쳐 정적 검증의 중복 install을 줄였다.
+After는 최종 workflow 기준으로 측정했다. `Checks` job은 `pnpm test`, `pnpm lint`, `pnpm typecheck`를 한 번의 install 뒤에 실행한다. cold는 `pnpm cache is not found` 로그가 나온 실행으로 잡았고, warm은 `Cache restored from key:` 로그가 나온 실행으로 잡았다.
 
 #### After Cold Raw Data
 
-| 구분       | Total duration | Unit test | Lint | Typecheck | E2E   | Quality |
-| ---------- | -------------- | --------- | ---- | --------- | ----- | ------- |
-| cold try 1 | 1m 29s         | 45s       | 33s  | 34s       | 1m19s | 3s      |
-| cold try 2 | 1m 28s         | 40s       | 27s  | 28s       | 1m19s | 4s      |
-| cold try 3 | 1m 25s         | 45s       | 30s  | 31s       | 1m16s | 3s      |
+| 구분       | Total duration | Detect changes | Checks | E2E   | Budget | Quality | Cache |
+| ---------- | -------------- | -------------- | ------ | ----- | ------ | ------- | ----- |
+| cold try 1 | 1m 42s         | 9s             | 50s    | 1m20s | 37s    | 4s      | miss  |
+| cold try 2 | 1m 59s         | 5s             | 51s    | 1m44s | 49s    | 2s      | miss  |
+| cold try 3 | 1m 30s         | 8s             | 51s    | 1m12s | 39s    | 2s      | miss  |
 
 #### After Cold Summary
 
 | 항목           | Raw                 | Median | Range         |
 | -------------- | ------------------- | ------ | ------------- |
-| Total duration | 1m29s, 1m28s, 1m25s | 1m28s  | 1m25s ~ 1m29s |
-| Unit test      | 45s, 40s, 45s       | 45s    | 40s ~ 45s     |
-| Lint           | 33s, 27s, 30s       | 30s    | 27s ~ 33s     |
-| Typecheck      | 34s, 28s, 31s       | 31s    | 28s ~ 34s     |
-| E2E            | 1m19s, 1m19s, 1m16s | 1m19s  | 1m16s ~ 1m19s |
-| Quality        | 3s, 4s, 3s          | 3s     | 3s ~ 4s       |
+| Total duration | 1m42s, 1m59s, 1m30s | 1m42s  | 1m30s ~ 1m59s |
+| Detect changes | 9s, 5s, 8s          | 8s     | 5s ~ 9s       |
+| Checks         | 50s, 51s, 51s       | 51s    | 50s ~ 51s     |
+| E2E            | 1m20s, 1m44s, 1m12s | 1m20s  | 1m12s ~ 1m44s |
+| Budget         | 37s, 49s, 39s       | 39s    | 37s ~ 49s     |
+| Quality        | 4s, 2s, 2s          | 2s     | 2s ~ 4s       |
 
 #### After Warm Raw Data
 
-| 구분       | Total duration | Unit test | Lint | Typecheck | E2E   | Quality |
-| ---------- | -------------- | --------- | ---- | --------- | ----- | ------- |
-| warm try 1 | 1m 22s         | 39s       | 25s  | 33s       | 1m13s | 3s      |
-| warm try 2 | 1m 31s         | 38s       | 24s  | 37s       | 1m19s | 3s      |
-| warm try 3 | 1m 33s         | 40s       | 29s  | 25s       | 1m22s | 3s      |
+| 구분       | Total duration | Detect changes | Checks | E2E   | Budget | Quality | Cache |
+| ---------- | -------------- | -------------- | ------ | ----- | ------ | ------- | ----- |
+| warm try 1 | 1m 29s         | 8s             | 47s    | 1m08s | 38s    | 4s      | hit   |
+| warm try 2 | 1m 34s         | 7s             | 57s    | 1m15s | 39s    | 4s      | hit   |
+| warm try 3 | 1m 40s         | 5s             | 55s    | 1m23s | 43s    | 3s      | hit   |
 
 #### After Warm Summary
 
 | 항목           | Raw                 | Median | Range         |
 | -------------- | ------------------- | ------ | ------------- |
-| Total duration | 1m22s, 1m31s, 1m33s | 1m31s  | 1m22s ~ 1m33s |
-| Unit test      | 39s, 38s, 40s       | 39s    | 38s ~ 40s     |
-| Lint           | 25s, 24s, 29s       | 25s    | 24s ~ 29s     |
-| Typecheck      | 33s, 37s, 25s       | 33s    | 25s ~ 37s     |
-| E2E            | 1m13s, 1m19s, 1m22s | 1m19s  | 1m13s ~ 1m22s |
-| Quality        | 3s, 3s, 3s          | 3s     | 3s ~ 3s       |
+| Total duration | 1m29s, 1m34s, 1m40s | 1m34s  | 1m29s ~ 1m40s |
+| Detect changes | 8s, 7s, 5s          | 7s     | 5s ~ 8s       |
+| Checks         | 47s, 57s, 55s       | 55s    | 47s ~ 57s     |
+| E2E            | 1m08s, 1m15s, 1m23s | 1m15s  | 1m08s ~ 1m23s |
+| Budget         | 38s, 39s, 43s       | 39s    | 38s ~ 43s     |
+| Quality        | 4s, 4s, 3s          | 4s     | 3s ~ 4s       |
 
-After에서 가장 긴 job은 cold/warm 모두 `E2E`였다. E2E 내부에서는 `Run E2E tests`가 29~~31초, `Install Playwright Chromium`이 21~~27초로 가장 컸다. 병렬화 이후 전체 wall-clock은 `unit`, `lint`, `typecheck`의 합이 아니라 가장 오래 걸리는 E2E job에 가깝게 결정됐다.
+After에서 가장 긴 job은 cold/warm 모두 `E2E`였다. `Checks`는 install을 한 번만 수행한 뒤 unit test, lint, typecheck를 직렬로 실행하지만, median 기준 cold 51초, warm 55초로 E2E보다 짧았다. 따라서 정적 검증을 합쳐 install 반복을 줄여도 새 wall-clock 병목을 만들지는 않았다.
 
 ### Before/After 비교
 
 | 조건 | Before median | After median | 차이     |
 | ---- | ------------- | ------------ | -------- |
-| cold | 1m49s         | 1m28s        | 21s 감소 |
-| warm | 1m50s         | 1m31s        | 19s 감소 |
+| cold | 1m49s         | 1m42s        | 7s 감소  |
+| warm | 1m50s         | 1m34s        | 16s 감소 |
 
-Before에서는 하나의 `quality` job 안에서 `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm test:e2e`가 직렬로 실행됐다. After에서는 같은 검증을 유지하되 독립 job으로 나눠 병렬 실행했다. 그 결과 cold median은 1m49s에서 1m28s로, warm median은 1m50s에서 1m31s로 줄었다.
+Before에서는 하나의 `quality` job 안에서 `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm test:e2e`가 직렬로 실행됐다. After에서는 정적 검증을 `Checks`로 묶고, E2E와 Budget을 별도 job으로 분리해 병렬 실행했다. 그 결과 cold median은 1m49s에서 1m42s로, warm median은 1m50s에서 1m34s로 줄었다.
 
-초기 After 측정에서는 각 job이 `pnpm install --frozen-lockfile`을 반복했지만, install은 병렬로 겹쳐 실행되고 Playwright Chromium 설치는 E2E job에만 남겼다. 측정 결과 최장 구간은 E2E였으므로 반복 install이 병렬화 이득을 크게 상쇄하지는 않았다. 최종 workflow에서는 이 결과를 유지하면서도 정적 검증을 `Checks` job으로 합쳐 불필요한 install 반복을 줄였다.
+처음에는 `unit`, `lint`, `typecheck`를 각각 독립 job으로 나눠 측정했지만, 각 job이 setup과 install을 반복한다는 단점이 있었다. 최종 workflow에서는 세 검증을 `Checks` job 하나로 합쳐 install 반복을 줄였다. `Checks`가 직렬 실행으로 길어졌지만, 최장 job은 여전히 E2E였으므로 병렬화 이득을 크게 잃지 않았다.
 
 추가로 줄이려면 Playwright browser cache나 E2E shard를 검토할 수 있다. 다만 1단계 목표는 같은 검증을 유지한 채 Before에서 확인한 직렬 병목만 줄이는 것이므로, 이번 단계에서는 workflow를 더 복잡하게 만들지 않고 job 병렬화까지만 적용했다.
 

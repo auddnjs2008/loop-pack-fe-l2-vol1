@@ -295,6 +295,8 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 
 문서만 변경한 PR은 전체 55초에 끝났고, E2E와 Budget이 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다.
 
+workflow 변경 PR은 전체 1m24s에 끝났고, `Checks`, `E2E`, `Budget`이 모두 실행됐다. 최장 job은 `E2E` 1m10s였고, `Checks`는 51s, `Budget`은 40s였다.
+
 ![E2E 관련 workflow 변경 PR에서는 E2E가 실행된다.](../images/week10/e2e-runs-for-workflow-change.png)
 
 ![문서만 변경한 PR에서는 E2E가 skipped 처리된다.](../images/week10/e2e-skipped-for-docs-only.png)

@@ -523,4 +523,34 @@ Received [
 
 이 결과로 AI가 잡은 FSD 경계 위반이 결정적 하네스로도 막히는 것을 확인했다. 반대로 정상 브랜치에서는 같은 하네스가 통과하므로, 현재 구조에 대한 오탐은 확인되지 않았다.
 
-## 회고
+## 생각해 볼 질문 답변
+
+### 1. E2E를 모든 PR에 required로 걸면 어떤 문제가 생길까?
+
+E2E를 모든 PR에 required로 걸면 문서나 설명만 바꾼 PR에서도 브라우저 설치와 production E2E가 매번 실행되어 시간과 비용이 낭비된다. 또 E2E는 runner 상태나 네트워크 지연 때문에 flaky가 생길 수 있어, 앱 동작과 무관한 변경도 거짓 빨간불로 막힐 수 있다.
+
+반대로 E2E를 조건부로 스킵하면서 E2E job 자체를 required로 걸면 job이 대기 상태에 빠져 PR이 머지되지 않을 수 있다. 그래서 이 프로젝트에서는 E2E는 관련 경로, main push, `merge_group`에서 실행하고 required check는 항상 실행되는 `Quality` job으로 둔다.
+
+### 2. Lighthouse 점수 하락은 항상 merge blocker여야 할까?
+
+Lighthouse 점수 하락을 항상 merge blocker로 두는 것은 위험하다. 같은 코드라도 CI runner의 CPU, 네트워크, 측정 타이밍에 따라 점수가 흔들릴 수 있어서 단발성 하락으로 정상 PR을 막을 수 있다.
+
+그래서 이번 과제에서는 Lighthouse CI를 required gate로 두지 않고, 더 결정적인 번들 크기 예산과 환경 변수 검증만 merge blocker로 둔다. Lighthouse는 주요 화면 변경이나 정기 점검에서 참고 지표로 보고, 반복해서 재현되는 큰 회귀가 있을 때 별도 gate 승격을 검토한다.
+
+### 3. Preview 환경이 production API를 바라보면 무슨 일이 생길까?
+
+Preview 환경이 production API를 바라보면 테스트 주문, 장바구니 변경, 계정 데이터 수정 같은 실험 데이터가 실제 운영 데이터에 섞일 수 있다. 결제, 이메일, 재고 차감처럼 외부 효과가 있는 플로우라면 단순 데이터 오염을 넘어 실제 사용자나 운영 시스템에 영향을 줄 수 있다.
+
+그래서 preview와 CI에서는 production API가 아니라 격리된 API와 테스트 secret을 바라보도록 환경 변수를 분리해야 한다. 이번 프로젝트에서는 `validate-env`로 필수 URL 형식과 secret 존재 여부를 build 전에 검사하고, 실제 값은 Git에 커밋하지 않고 GitHub Secrets나 배포 플랫폼 secret으로 주입한다.
+
+### 4. AI가 만든 workflow를 그대로 머지하면 어떤 리스크가 있을까?
+
+AI가 만든 workflow를 그대로 머지하면 겉보기에는 동작해도 보안과 운영 조건이 틀릴 수 있다. 예를 들어 `permissions`를 과하게 열거나, `pull_request_target`에서 PR 코드를 checkout해 secret이 노출될 수 있고, third-party action을 태그로만 써서 공급망 변경에 취약해질 수 있다.
+
+또 cache key가 실제 lockfile과 연결되지 않거나, path filter가 필요한 검증을 스킵하거나, 조건부 job을 required로 걸어 PR이 pending에 빠질 수 있다. 그래서 AI 초안은 그대로 믿지 않고 최소 권한, secret 노출 여부, action pin, cache hit 로그, path filter 안전성, required check 구조를 실제 CI 실행으로 검증해야 한다.
+
+### 선택. Rollback은 이전 버전으로 되돌리기만 하면 끝날까?
+
+Rollback은 이전 커밋으로 되돌리는 것만으로 끝나지 않는다. 앱 코드는 이전 deployment로 되돌릴 수 있지만, DB schema, 캐시, queue job, 진행 중인 결제/주문 트랜잭션이 새 버전의 상태를 이미 만들었을 수 있다.
+
+그래서 운영에서는 되돌리기 어려운 마이그레이션을 늦추고, 새/구 코드가 함께 동작하는 이전 버전과 호환되는 마이그레이션을 먼저 설계한다. 문제가 특정 기능에 국한되면 전체 rollback보다 feature flag를 끄는 편이 빠르고, rollback 후에는 캐시 무효화와 오류율/핵심 플로우 지표 확인까지 해야 완료로 본다.

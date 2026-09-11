@@ -93,20 +93,20 @@ pnpm cache는 `Install dependencies` 시간을 줄이는 데 효과가 있었다
 
 현재 workflow는 lint, typecheck, test, build, E2E를 한 job에서 모두 실행한다. pnpm cache hit은 확인했지만, 전체 실행 시간에는 큰 영향을 주지 못했다. Before 기준에서 줄일 후보는 `Run quality checks` 내부를 쪼개 병렬화할 수 있는지, 또는 Playwright Chromium 설치를 E2E job으로 분리해 필요한 경우에만 실행할 수 있는지다.
 
-다만 1단계 최적화에서는 검증을 제거하지 않고, 같은 검증을 유지한 채 병목만 줄여야 한다. 그래서 다음 변경 후보는 `lint`, `typecheck`, `unit test`, `build/e2e`를 독립 job으로 나누는 방식이다.
+다만 1단계 최적화에서는 검증을 제거하지 않고, 같은 검증을 유지한 채 병목만 줄여야 한다. 그래서 다음 변경 후보는 정적 검증과 E2E를 분리하고, Playwright Chromium 설치를 E2E 쪽에만 남기는 방식이다.
 
 ### 전략 선택
 
 Before에서 지목한 병목은 `Run quality checks`였다. 이 step 안에서 `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm test:e2e`가 직렬로 실행되므로 1단계에서는 job 병렬화를 적용한다.
 
-| 전략                       | 적용 여부 | 판단 근거                                                                                                                                               |
-| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| job 병렬화                 | 적용      | `Run quality checks`가 cold/warm 모두 최장 step이었다. 독립적인 검증을 job으로 나누면 같은 검증을 유지하면서 직렬 시간을 줄일 수 있다.                  |
-| `concurrency` 그룹         | 제외      | 같은 PR에 연속 push가 쌓이는 문제를 줄이는 전략이다. 이번 Before 측정의 병목은 단일 실행 내부의 직렬 검증이므로 직접적인 wall-clock 개선 전략은 아니다. |
-| setup-node/pnpm store 캐시 | 제외      | 이미 적용되어 있고 warm 실행에서 cache hit이 확인됐다. `Install dependencies`는 warm 기준 2초라 현재 병목이 아니다.                                     |
-| path filter                | 제외      | 안 돌려도 되는 검증을 제외하는 조건부 실행 전략이므로 2단계에서 다룬다. 1단계에서는 돌리기로 한 검증을 더 빠르게 만드는 데 집중한다.                    |
+| 전략                       | 적용 여부 | 판단 근거                                                                                                                                                     |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| job 병렬화                 | 적용      | `Run quality checks`가 cold/warm 모두 최장 step이었다. 정적 검증과 E2E를 job으로 나누면 같은 검증을 유지하면서 E2E의 긴 실행 시간과 다른 검증을 겹칠 수 있다. |
+| `concurrency` 그룹         | 제외      | 같은 PR에 연속 push가 쌓이는 문제를 줄이는 전략이다. 이번 Before 측정의 병목은 단일 실행 내부의 직렬 검증이므로 직접적인 wall-clock 개선 전략은 아니다.       |
+| setup-node/pnpm store 캐시 | 제외      | 이미 적용되어 있고 warm 실행에서 cache hit이 확인됐다. `Install dependencies`는 warm 기준 2초라 현재 병목이 아니다.                                           |
+| path filter                | 제외      | 안 돌려도 되는 검증을 제외하는 조건부 실행 전략이므로 2단계에서 다룬다. 1단계에서는 돌리기로 한 검증을 더 빠르게 만드는 데 집중한다.                          |
 
-job을 병렬화하면 각 job에서 `pnpm install --frozen-lockfile`이 반복된다. 다만 warm 기준 `Install dependencies` 중앙값이 2초였기 때문에 이 반복은 현재 wall-clock 병목으로 보지 않았다. 대신 `Install Playwright Chromium when used`는 24~35초로 상대적으로 크므로 E2E job에서만 실행하도록 분리한다.
+job을 병렬화하면 각 job에서 `pnpm install --frozen-lockfile`이 반복될 수 있다. 처음에는 `unit`, `lint`, `typecheck`, `e2e`를 각각 독립 job으로 나눠 측정했고, warm 기준 `Install dependencies` 중앙값이 2초였기 때문에 이 반복은 wall-clock 병목으로 보지 않았다. 이후 중복 install을 줄이려고 `unit`, `lint`, `typecheck`는 하나의 `Checks` job으로 합쳤고, `Install Playwright Chromium when used`는 24~35초로 상대적으로 크므로 E2E job에만 남겼다.
 
 `concurrency`를 나중에 적용한다면 main push 실행까지 취소하지 않도록 `group: ${{ github.workflow }}-${{ github.ref }}`처럼 ref를 포함해야 한다.
 
@@ -173,20 +173,20 @@ cache hit에서는 pnpm store가 복원되어 `Install dependencies`가 2초로 
 
 ### 적용 내용
 
-`.github/workflows/quality.yml`의 단일 `quality` job을 `unit`, `lint`, `typecheck`, `e2e` job으로 나눴다.
+`.github/workflows/quality.yml`의 단일 `quality` job을 `checks`, `e2e`, `budget`, `quality` job으로 나눴다.
 
-- `unit`: `pnpm test`
-- `lint`: `pnpm lint`
-- `typecheck`: `pnpm typecheck`
+- `checks`: 한 번 install한 뒤 `pnpm test`, `pnpm lint`, `pnpm typecheck`
 - `e2e`: `pnpm exec playwright install --with-deps chromium` 후 `pnpm test:e2e`
+- `budget`: 환경 변수 검증, production build, 번들 예산 검사
+- `quality`: 항상 실행되는 최종 집계 job
 
-모든 job은 `pnpm install --frozen-lockfile`과 `actions/setup-node`의 pnpm cache 설정을 유지한다. Playwright Chromium 설치는 E2E에만 필요하므로 `e2e` job에만 남겼다.
+검증은 유지하되 정적 검증의 install 반복은 줄였다. E2E와 Budget은 production build나 Playwright 설치처럼 실행 성격이 다르므로 별도 job으로 유지한다. Playwright Chromium 설치는 E2E에만 필요하므로 `e2e` job에만 남겼다.
 
-기존 PR check 이름을 유지하기 위해 마지막에 `Quality` 집계 job을 뒀다. 이 job은 `unit`, `lint`, `typecheck`, `e2e` 결과가 모두 `success`일 때만 통과한다.
+기존 PR check 이름을 유지하기 위해 마지막에 `Quality` 집계 job을 뒀다. 이 job은 `checks`가 성공하고, E2E와 Budget이 실행 대상이면 `success`, 실행 대상이 아니면 `skipped`일 때만 통과한다.
 
 ### After 측정
 
-After는 `quality` job을 `unit`, `lint`, `typecheck`, `e2e`로 병렬화한 뒤 측정했다. cold는 cache를 지운 뒤 `pnpm cache is not found` 로그가 나온 실행으로 잡았고, warm은 `Cache restored from key:` 로그가 나온 실행으로 잡았다.
+After는 `quality` job을 `unit`, `lint`, `typecheck`, `e2e`로 병렬화한 뒤 측정했다. cold는 cache를 지운 뒤 `pnpm cache is not found` 로그가 나온 실행으로 잡았고, warm은 `Cache restored from key:` 로그가 나온 실행으로 잡았다. 이후 최종 workflow에서는 측정 결과를 바탕으로 `unit`, `lint`, `typecheck`를 `Checks` job 하나로 합쳐 정적 검증의 중복 install을 줄였다.
 
 #### After Cold Raw Data
 
@@ -237,7 +237,7 @@ After에서 가장 긴 job은 cold/warm 모두 `E2E`였다. E2E 내부에서는 
 
 Before에서는 하나의 `quality` job 안에서 `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm test:e2e`가 직렬로 실행됐다. After에서는 같은 검증을 유지하되 독립 job으로 나눠 병렬 실행했다. 그 결과 cold median은 1m49s에서 1m28s로, warm median은 1m50s에서 1m31s로 줄었다.
 
-각 job이 `pnpm install --frozen-lockfile`을 반복하지만, install은 병렬로 겹쳐 실행되고 Playwright Chromium 설치는 E2E job에만 남겼다. After 측정에서도 최장 구간은 E2E였으므로, 반복 install이 병렬화 이득을 크게 상쇄하지는 않았다.
+초기 After 측정에서는 각 job이 `pnpm install --frozen-lockfile`을 반복했지만, install은 병렬로 겹쳐 실행되고 Playwright Chromium 설치는 E2E job에만 남겼다. 측정 결과 최장 구간은 E2E였으므로 반복 install이 병렬화 이득을 크게 상쇄하지는 않았다. 최종 workflow에서는 이 결과를 유지하면서도 정적 검증을 `Checks` job으로 합쳐 불필요한 install 반복을 줄였다.
 
 추가로 줄이려면 Playwright browser cache나 E2E shard를 검토할 수 있다. 다만 1단계 목표는 같은 검증을 유지한 채 Before에서 확인한 직렬 병목만 줄이는 것이므로, 이번 단계에서는 workflow를 더 복잡하게 만들지 않고 job 병렬화까지만 적용했다.
 
@@ -490,7 +490,7 @@ AI/사람 리뷰에 남길 것과 기계로 내릴 것은 아래처럼 나눴다
 
 ### CI 배치
 
-`quality.yml`의 `Unit test` job은 `pnpm test`를 실행한다. `fsdImportBoundaries.test.ts`는 일반 Vitest suite에 포함되므로 PR마다 `Unit test`와 최종 `Quality` gate를 통해 실행된다.
+`quality.yml`의 `Checks` job은 `pnpm test`를 실행한다. `fsdImportBoundaries.test.ts`는 일반 Vitest suite에 포함되므로 PR마다 `Checks`와 최종 `Quality` gate를 통해 실행된다.
 
 빠르게 이 규칙만 확인할 때는 아래 명령을 사용한다.
 

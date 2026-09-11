@@ -40,7 +40,7 @@ import 방향 위반은 경로만 보면 참/거짓을 판별할 수 있다. 사
 
 ## 4. 테스트와 품질 게이트
 
-현재 CI는 `unit`, `lint`, `typecheck`, `e2e`, `budget`, `quality` job으로 나뉜다. `unit`, `lint`, `typecheck`는 모든 PR에서 실행하고, E2E와 Budget은 앱 런타임이나 설정에 영향을 주는 경로에서만 실행한다. 조건부 job 자체를 required로 두지 않고 항상 실행되는 `Quality` job이 최종 판정을 맡게 해, skipped job 때문에 PR이 대기 상태에 빠지는 문제를 피했다.
+현재 CI는 `checks`, `e2e`, `budget`, `quality` job으로 나뉜다. `checks`는 한 번 install한 뒤 unit test, lint, typecheck를 실행하고, E2E와 Budget은 앱 런타임이나 설정에 영향을 주는 경로에서만 실행한다. 조건부 job 자체를 required로 두지 않고 항상 실행되는 `Quality` job이 최종 판정을 맡게 해, skipped job 때문에 PR이 대기 상태에 빠지는 문제를 피했다.
 
 E2E는 비싸고 흔들릴 수 있으므로 모든 PR에 무조건 붙이지 않았다. 대신 `src/**`, `e2e/**`, `public/**`, 주요 설정 파일, workflow 변경에서는 실행하고, `push` to main과 `merge_group`에서는 항상 실행한다. 문서-only PR에서는 E2E가 skipped 되는 캡처와, workflow 변경 PR에서는 E2E가 실행되는 캡처를 `docs/images/week10`에 남겼다.
 
@@ -54,7 +54,7 @@ E2E는 비싸고 흔들릴 수 있으므로 모든 PR에 무조건 붙이지 않
 
 ## 6. CI/CD와 AI 협업
 
-CI는 먼저 같은 검증을 유지한 채 병목만 줄였다. Before에서 `Run quality checks`가 가장 긴 구간이었기 때문에 test, lint, typecheck, E2E를 병렬 job으로 나눴다. cache hit/miss도 lockfile hash를 일부러 바꿔 검증했고, warm hit에서는 install이 `2s`, miss에서는 `8s`로 늘어나는 것을 기록했다.
+CI는 먼저 같은 검증을 유지한 채 병목만 줄였다. Before에서 `Run quality checks`가 가장 긴 구간이었기 때문에 정적 검증과 E2E를 분리했고, 정적 검증은 `Checks` job에서 한 번 install한 뒤 test, lint, typecheck를 실행하게 했다. cache hit/miss도 lockfile hash를 일부러 바꿔 검증했고, warm hit에서는 install이 `2s`, miss에서는 `8s`로 늘어나는 것을 기록했다.
 
 workflow 보안도 기본값을 좁혔다. `permissions`는 `contents: read`, `pull-requests: read`로 제한했고, 모든 action은 commit SHA로 고정했다. `pull_request_target`은 쓰지 않았고, `actions/checkout`에는 `persist-credentials: false`를 둬 이후 step에 credential이 남지 않게 했다.
 

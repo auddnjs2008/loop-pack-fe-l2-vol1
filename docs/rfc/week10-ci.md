@@ -288,12 +288,12 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 
 실제 PR에서도 조건부 실행을 확인했다.
 
-| PR / 변경 범위                   | 결과                                                          | 판단 |
-| -------------------------------- | ------------------------------------------------------------- | ---- |
-| `feat/week-10` / workflow 변경   | `Detect changes`, `Checks`, `E2E`, `Quality` success          | 통과 |
-| `test/e2e-skip-docs` / 문서 변경 | `Detect changes`, 정적 검증, `Quality` success, `E2E` skipped | 통과 |
+| PR / 변경 범위                      | 결과                                                                   | 판단 |
+| ----------------------------------- | ---------------------------------------------------------------------- | ---- |
+| `feat/week-10` / workflow 변경      | `Detect changes`, `Checks`, `E2E`, `Budget`, `Quality` success         | 통과 |
+| `test/e2e-skip-docs-v2` / 문서 변경 | `Detect changes`, `Checks`, `Quality` success, `E2E`, `Budget` skipped | 통과 |
 
-문서만 변경한 PR은 전체 52초에 끝났고, E2E가 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다. 이 캡처는 `Checks` 통합 전 실행이라 정적 검증이 `unit`, `lint`, `typecheck`로 나뉘어 보이지만, 현재 workflow에서는 같은 검증이 `Checks` job 하나로 실행된다.
+문서만 변경한 PR은 전체 55초에 끝났고, E2E와 Budget이 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다.
 
 ![E2E 관련 workflow 변경 PR에서는 E2E가 실행된다.](../images/week10/e2e-runs-for-workflow-change.png)
 

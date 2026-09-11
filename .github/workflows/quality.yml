@@ -31,6 +31,7 @@ jobs:
         with:
           filters: |
             e2e:
+              # Workflow changes must exercise the full quality path.
               - "src/**"
               - "e2e/**"
               - "public/**"

@@ -245,7 +245,7 @@ Before에서는 하나의 `quality` job 안에서 `pnpm test`, `pnpm lint`, `pnp
 
 ### 대상 변경 범위
 
-E2E는 브라우저를 설치하고 production build까지 수행하므로 현재 workflow에서 가장 비싼 검증이다. 반면 `unit`, `lint`, `typecheck`는 결정적이고 상대적으로 저비용이므로 모든 PR에서 계속 실행한다.
+E2E는 브라우저를 설치하고 production build까지 수행하므로 현재 workflow에서 가장 비싼 검증이다. 반면 unit test, lint, typecheck는 결정적이고 상대적으로 저비용이므로 `Checks` job으로 묶어 모든 PR에서 계속 실행한다.
 
 E2E는 앱 런타임, 브라우저 노출 자산, E2E 테스트/설정, 의존성, Node 버전, CI 실행 방식이 바뀐 경우에만 실행한다.
 
@@ -260,7 +260,7 @@ E2E는 앱 런타임, 브라우저 노출 자산, E2E 테스트/설정, 의존�
 
 ### 실행 조건
 
-`dorny/paths-filter`로 PR의 변경 경로를 판정하고, workflow 자체는 항상 실행한다. `on.pull_request.paths`는 workflow 전체를 스킵해 `unit`, `lint`, `typecheck`, `Quality`까지 실행되지 않을 수 있으므로 사용하지 않았다.
+`dorny/paths-filter`로 PR의 변경 경로를 판정하고, workflow 자체는 항상 실행한다. `on.pull_request.paths`는 workflow 전체를 스킵해 `Checks`와 `Quality`까지 실행되지 않을 수 있으므로 사용하지 않았다.
 
 | 이벤트         | E2E 실행 조건                              |
 | -------------- | ------------------------------------------ |
@@ -270,7 +270,7 @@ E2E는 앱 런타임, 브라우저 노출 자산, E2E 테스트/설정, 의존�
 
 Draft PR은 아직 merge 대상이 아니므로 E2E를 스킵한다. Ready for review로 전환되면 PR 이벤트가 다시 발생하고 변경 경로 기준으로 E2E 실행 여부를 다시 판정한다.
 
-Branch protection의 required check와 충돌하지 않도록 `E2E` 자체가 아니라 항상 실행되는 `Quality` job을 최종 판정으로 둔다. `Quality`는 `unit`, `lint`, `typecheck`가 모두 성공해야 통과하고, E2E는 실행 대상이면 `success`, 의도적으로 스킵된 경우면 `skipped`를 정상으로 인정한다.
+Branch protection의 required check와 충돌하지 않도록 `E2E` 자체가 아니라 항상 실행되는 `Quality` job을 최종 판정으로 둔다. `Quality`는 `Checks`가 성공해야 통과하고, E2E는 실행 대상이면 `success`, 의도적으로 스킵된 경우면 `skipped`를 정상으로 인정한다.
 
 main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경이나 draft 상태로 E2E가 스킵되더라도, merge queue에서는 경로와 무관하게 E2E를 항상 실행해 main 병합 직전 최종 방어선을 둔다. merge queue를 쓰지 않는 main push에서도 E2E를 항상 실행한다.
 
@@ -278,22 +278,22 @@ main 보호는 `merge_group`에서 보완한다. PR 단계에서 문서 변경�
 
 검증은 조건에 걸리는 PR과 걸리지 않는 PR을 각각 만들어 확인한다.
 
-| 케이스             | 기대 결과                                                  |
-| ------------------ | ---------------------------------------------------------- |
-| 문서만 변경한 PR   | `unit`, `lint`, `typecheck`, `Quality` 실행, `E2E` skipped |
-| `src/**` 변경 PR   | `unit`, `lint`, `typecheck`, `E2E`, `Quality` 모두 실행    |
-| Draft PR           | E2E 관련 경로가 바뀌어도 `E2E` skipped, `Quality` success  |
-| Ready 전환 후 PR   | E2E 관련 경로 변경이 있으면 `E2E` 실행                     |
-| `merge_group` 실행 | 경로와 무관하게 `E2E` 실행                                 |
+| 케이스             | 기대 결과                                                 |
+| ------------------ | --------------------------------------------------------- |
+| 문서만 변경한 PR   | `Checks`, `Quality` 실행, `E2E` skipped                   |
+| `src/**` 변경 PR   | `Checks`, `E2E`, `Quality` 모두 실행                      |
+| Draft PR           | E2E 관련 경로가 바뀌어도 `E2E` skipped, `Quality` success |
+| Ready 전환 후 PR   | E2E 관련 경로 변경이 있으면 `E2E` 실행                    |
+| `merge_group` 실행 | 경로와 무관하게 `E2E` 실행                                |
 
 실제 PR에서도 조건부 실행을 확인했다.
 
-| PR / 변경 범위                   | 결과                                                                            | 판단 |
-| -------------------------------- | ------------------------------------------------------------------------------- | ---- |
-| `feat/week-10` / workflow 변경   | `Detect changes`, `E2E`, `Quality` success                                      | 통과 |
-| `test/e2e-skip-docs` / 문서 변경 | `Detect changes`, `unit`, `lint`, `typecheck`, `Quality` success, `E2E` skipped | 통과 |
+| PR / 변경 범위                   | 결과                                                          | 판단 |
+| -------------------------------- | ------------------------------------------------------------- | ---- |
+| `feat/week-10` / workflow 변경   | `Detect changes`, `Checks`, `E2E`, `Quality` success          | 통과 |
+| `test/e2e-skip-docs` / 문서 변경 | `Detect changes`, 정적 검증, `Quality` success, `E2E` skipped | 통과 |
 
-문서만 변경한 PR은 전체 52초에 끝났고, E2E가 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다.
+문서만 변경한 PR은 전체 52초에 끝났고, E2E가 의도대로 skipped 처리됐다. `Quality`도 success로 끝나 required check 대기 상태가 생기지 않았다. 이 캡처는 `Checks` 통합 전 실행이라 정적 검증이 `unit`, `lint`, `typecheck`로 나뉘어 보이지만, 현재 workflow에서는 같은 검증이 `Checks` job 하나로 실행된다.
 
 ![E2E 관련 workflow 변경 PR에서는 E2E가 실행된다.](../images/week10/e2e-runs-for-workflow-change.png)
 
@@ -342,7 +342,7 @@ GitHub Actions에서 `AUTH_SESSION_SECRET`은 `${{ secrets.AUTH_SESSION_SECRET }
 3. `New repository secret`을 누른다.
 4. Name은 `AUTH_SESSION_SECRET`, 값은 16자 이상의 CI용 secret으로 저장한다.
 
-Branch protection의 required check는 `Quality`를 기준으로 둔다. `unit`, `lint`, `typecheck`, 조건부 `E2E`, 조건부 `Budget` 결과를 `Quality`가 집계하므로 required check가 조건부 job의 skipped 상태 때문에 대기 상태에 빠지지 않는다.
+Branch protection의 required check는 `Quality`를 기준으로 둔다. `Checks`, 조건부 `E2E`, 조건부 `Budget` 결과를 `Quality`가 집계하므로 required check가 조건부 job의 skipped 상태 때문에 대기 상태에 빠지지 않는다.
 
 ### 검증 결과
 

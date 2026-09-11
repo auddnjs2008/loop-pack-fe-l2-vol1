@@ -114,14 +114,14 @@ job을 병렬화하면 각 job에서 `pnpm install --frozen-lockfile`이 반복�
 
 CI는 PR 코드를 checkout해서 실행하고, `Budget` job에서는 repository secret도 읽는다. 그래서 workflow 기본값을 넓게 두지 않고 아래 기준을 적용했다.
 
-| 항목                          | 적용 내용                                                                                                       | 판단 근거                                                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 최소 권한                     | workflow 최상단에 `permissions: contents: read`, `pull-requests: read`를 명시했다.                              | 코드를 읽고 PR 변경 파일을 판별하면 충분하다. PR 코멘트를 쓰지 않으므로 `pull-requests: write`는 주지 않는다.   |
-| third-party action 핀         | `actions/checkout`, `actions/setup-node`, `pnpm/action-setup`, `dorny/paths-filter`를 모두 commit SHA로 핀했다. | 공식 action은 major tag도 가능하지만, 이번 과제에서는 재현성과 공급망 리스크 축소를 위해 모두 SHA로 고정했다.   |
-| checkout credential 저장 차단 | 모든 `actions/checkout` step에 `persist-credentials: false`를 둔다.                                             | 이후 step에서 git credential이 남아 push나 외부 전송에 쓰일 여지를 줄인다.                                      |
-| `pull_request_target` 미사용  | trigger는 `pull_request`, `push`, `merge_group`만 사용한다.                                                     | fork PR 코드가 secrets 접근 권한으로 실행되는 위험을 피한다.                                                    |
-| secrets 노출 방지             | `AUTH_SESSION_SECRET`은 `Budget` job의 env로만 주입하고, 로그에는 값이 아니라 검증 성공/실패 메시지만 남긴다.   | secret 자체를 echo하지 않는다. fork PR처럼 secret이 비어 있으면 `validate:env`에서 실패해 닫힌 쪽으로 동작한다. |
-| AI 리뷰 CI 미연동             | AI 리뷰는 문서화된 수동 리뷰 보조로만 둔다.                                                                     | AI API key를 CI secret으로 추가하지 않아도 되고, PR 코드 실행과 외부 API 호출을 섞지 않아도 된다.               |
+| 항목                          | 적용 내용                                                                                                       | 판단 근거                                                                                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 최소 권한                     | workflow 최상단에 `permissions: contents: read`, `pull-requests: read`를 명시했다.                              | 코드를 읽고 PR 변경 파일을 판별하면 충분하다. PR 코멘트를 쓰지 않으므로 `pull-requests: write`는 주지 않는다.                    |
+| third-party action 핀         | `actions/checkout`, `actions/setup-node`, `pnpm/action-setup`, `dorny/paths-filter`를 모두 commit SHA로 핀했다. | 공식 action은 major tag도 가능하지만, 이번 과제에서는 재현성과 공급망 리스크 축소를 위해 모두 SHA로 고정했다.                    |
+| checkout credential 저장 차단 | 모든 `actions/checkout` step에 `persist-credentials: false`를 둔다.                                             | 이후 step에서 git credential이 남아 push나 외부 전송에 쓰일 여지를 줄인다.                                                       |
+| `pull_request_target` 미사용  | trigger는 `pull_request`, `push`, `merge_group`만 사용한다.                                                     | fork PR 코드가 secrets 접근 권한으로 실행되는 위험을 피한다.                                                                     |
+| secrets 노출 방지             | `AUTH_SESSION_SECRET`은 `Budget` job의 env로만 주입하고, 로그에는 값이 아니라 검증 성공/실패 메시지만 남긴다.   | secret 자체를 echo하지 않는다. PR에서는 CI용 더미 secret을 쓰고, `push main`과 `merge_group`에서는 repository secret을 요구한다. |
+| AI 리뷰 CI 미연동             | AI 리뷰는 문서화된 수동 리뷰 보조로만 둔다.                                                                     | AI API key를 CI secret으로 추가하지 않아도 되고, PR 코드 실행과 외부 API 호출을 섞지 않아도 된다.                                |
 
 ### 캐시 hit 자가 검증
 
@@ -335,7 +335,7 @@ Lighthouse CI는 이번 단계의 required gate로 넣지 않는다. 7주차 LCP
 - `Quality` CI job: `Budget`이 실행 대상이면 success를 요구하고, 문서-only 또는 draft PR에서 skipped면 정상으로 인정
 - `.env.example`: 필요한 환경 변수 목록과 형식 문서화
 
-GitHub Actions에서 `AUTH_SESSION_SECRET`은 `${{ secrets.AUTH_SESSION_SECRET }}`로 주입한다. 이 값은 repository secret으로 직접 추가해야 한다.
+GitHub Actions에서 `AUTH_SESSION_SECRET`은 이벤트에 따라 다르게 주입한다. `pull_request`에서는 upstream/fork PR도 검증을 통과할 수 있도록 16자 이상의 CI용 더미 값을 사용한다. 반면 `push main`과 `merge_group`에서는 `${{ secrets.AUTH_SESSION_SECRET }}`를 사용하므로 repository secret을 직접 추가해야 한다.
 
 설정 절차:
 
@@ -362,13 +362,13 @@ CI=true APP_ORIGIN=http://127.0.0.1:3000 AUTH_SESSION_SECRET=ci-week10-budget-se
 
 #### 빨간불 자가 검증
 
-`AUTH_SESSION_SECRET` repository secret을 등록하지 않은 상태에서 PR을 실행했다. `Budget` job의 `Validate environment` 단계가 `AUTH_SESSION_SECRET is required.` 메시지로 실패했고, 최종 `Quality` job도 실패했다.
+초기 설계에서는 `AUTH_SESSION_SECRET` repository secret을 등록하지 않은 상태에서 PR을 실행했다. `Budget` job의 `Validate environment` 단계가 `AUTH_SESSION_SECRET is required.` 메시지로 실패했고, 최종 `Quality` job도 실패했다.
 
 ![AUTH_SESSION_SECRET 누락으로 Budget과 Quality가 실패한 실행 요약](../images/week10/budget-missing-secret-summary-failed.png)
 
 ![AUTH_SESSION_SECRET 누락 실패 로그](../images/week10/budget-missing-secret-log-failed.png)
 
-이후 GitHub repository secret에 `AUTH_SESSION_SECRET`을 추가하고 failed jobs를 rerun했다. `Validate environment` 단계는 `Environment validation passed`로 통과했고, `Budget`과 `Quality`가 모두 성공했다.
+이후 GitHub repository secret에 `AUTH_SESSION_SECRET`을 추가하고 failed jobs를 rerun했다. `Validate environment` 단계는 `Environment validation passed`로 통과했고, `Budget`과 `Quality`가 모두 성공했다. 최종 workflow에서는 upstream PR에서도 확인 가능한 제출을 위해 `pull_request`에 한해 CI용 더미 secret을 주입하고, main 병합 전 경로인 `merge_group`에서는 repository secret을 요구하도록 조정했다.
 
 ![AUTH_SESSION_SECRET 추가 후 rerun 성공 요약](../images/week10/budget-secret-rerun-summary-passed.png)
 
